@@ -1,0 +1,9 @@
+{
+
+    "dirs": {
+        "DIR1": [
+            {"path":"/home/neil/test/", "filename": "out.txt"}
+        ]
+
+    }
+}
