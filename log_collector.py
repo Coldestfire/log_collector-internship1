@@ -17,6 +17,32 @@ import json
 from datetime import datetime
 import glob
 
+# Function to search for core dump files
+def search_for_core_files(core_dirs):
+    core_files = []
+    for dir_name, file_specs in core_dirs.items():
+        for file_spec in file_specs:
+            if file_spec["filename"] == "core":
+                path = file_spec["path"]
+                files = glob.glob(os.path.join(path, "core.*"))
+                if files:
+                    core_files.extend(files)
+    return core_files
+
+# Function to get program name from core dump file
+def get_program_name(core_dump_file):
+    output = os.popen(f"file {core_dump_file}").read()
+    program_name = output.split(", execfn: ")[1].split(", platform:")[0].replace("'", "")
+    return program_name
+
+# Function to run gdb command and save output to file
+def run_gdb_command_and_save_output(program_name, core_dump_file):
+    output_file = f"{core_dump_file}.log"
+    command = f"gdb {program_name} {core_dump_file} -ex bt full -ex quit"
+    output = os.popen(command).read()
+    with open(output_file, "w") as f:
+        f.write(output)
+
 # Read config file
 with open('config.json') as f:
     config = json.load(f)
@@ -50,6 +76,25 @@ for dir_name, dir_info in config['dirs'].items():
                 # Add file to output zip file
                 myzip.write(file, os.path.basename(file))
                 
+
+        # Search for core dump files
+        core_files = search_for_core_files(config["dirs"])
+
+        # Process each core dump file
+        for core_dump_file in core_files:
+
+            # Get program name
+            program_name = get_program_name(core_dump_file)
+
+            # Run gdb command and save output
+            run_gdb_command_and_save_output(program_name, core_dump_file)
+
+            # Add output file to zip file
+            output_file = f"{core_dump_file}.log"
+            myzip.write(output_file, os.path.basename(output_file))
+            os.remove(output_file)  # Remove the log file after it has been added to the zip file
+
+
 # Create text file containing date range
 text_filename = "date_range.txt"
 with myzip.open(text_filename, 'w') as text_file:
@@ -64,4 +109,3 @@ with myzip.open(text_filename, 'w') as text_file:
 myzip.close()
 
 print("Logs Zipped Successfully")
-
